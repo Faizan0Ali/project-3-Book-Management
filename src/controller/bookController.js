@@ -1,53 +1,116 @@
 const bookModel = require('../Models/bookModel')
-const userModel=require('../Models/userModel')
+const userModel = require('../Models/userModel')
+const moment = require('moment')
 
-const mongoose= require('mongoose')
+const mongoose = require('mongoose')
 
-// - Create a book document from request body. Get userId in request body only.
-// - Make sure the userId is a valid userId by checking the user exist in the users collection.
+
 // - Return HTTP status 201 on a succesful book creation. Also return the book document. 
 // The response should be a JSON object like [this](#successful-response-structure) 
 // - Create atleast 10 books for each user
 // - Return HTTP status 400 for an invalid request with a response body like [this](#error-response-structure)
 
-// {
-//     "_id": ObjectId("88abc190ef0288abc190ef55"),
-//     "title": "How to win friends and influence people",
-//     "excerpt": "book body",
-//     "userId": ObjectId("88abc190ef0288abc190ef02"),
-//     "ISBN": "978-0008391331",
-//     "category": "Book",
-//     "subcategory": "Non fiction",
-//     "isDeleted": false,
-//     "reviews": 0,
-//     "releasedAt": "2021-09-17"
-//     "createdAt": "2021-09-17T04:25:07.803Z",
-//     "updatedAt": "2021-09-17T04:25:07.803Z",
-//   }
+
 const createBook = async function (req, res) {
+    try {
+        const data = req.body
+        const { title, excerpt, userId, ISBN, category, subcategory, releasedAt } = data
 
-    const data = req.body
-    const { title, excerpt, userId, ISBN, category, subcategory, releasedAt } = data
+        //____Mandatory_Fields____\\
+        if (Object.keys(data).length == 0) return res.status(400).send({ status: false, message: "Please enter valid Detail" })
+        if (!title) return res.status(400).send({ status: false, message: "Title is mandatory" })
+        if (!excerpt) return res.status(400).send({ status: false, message: "excerpt is mandatory" })
+        if (!userId) return res.status(400).send({ status: false, message: "userId is mandatory" })
+        if (!ISBN) return res.status(400).send({ status: false, message: "ISBN is mandatory" })
+        if (!category) return res.status(400).send({ status: false, message: "category is mandatory" })
+        if (!subcategory) return res.status(400).send({ status: false, message: "subcategory is mandatory" })
+        if (!releasedAt) return res.status(400).send({ status: false, message: "Released date is mandatory" })
 
-    if (Object.keys(data).length == 0) return res.status(400).send({ status: false, message: "Please enter valid Detail" })
+        //____Validation____\\
+        if (mongoose.Types.ObjectId.isValid(userId) == false) {
+            return res.status(400).send({ status: false, message: "userId Invalid" });
+        }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(releasedAt)) {
+            return res.status(400).send({ status: false, message: "Released date is not valid it should be YYYY-MM-DD" })
+        }
+        if (!/^[0-9 -]{13}$/.test(ISBN)) {
+            return res.status(400).send({ status: false, message: "ISBN Must Be Only 13 Digits" })
+        }
+        //____Duplicate_Validation____\\
+        const checkTitle = await bookModel.findOne({ title })
+        if (checkTitle) return res.status(409).send({ status: false, message: "Title already exists" })
 
-    if (!title) return res.status(400).send({ status: false, message: "Title is mandatory" })
-    if (!excerpt) return res.status(400).send({ status: false, message: "excerpt is mandatory" })
-    if (!userId) return res.status(400).send({ status: false, message: "userId is mandatory" })
-    if (!ISBN) return res.status(400).send({ status: false, message: "ISBN is mandatory" })
-    if (!category) return res.status(400).send({ status: false, message: "category is mandatory" })
-    if (!subcategory) return res.status(400).send({ status: false, message: "subcategory is mandatory" })
-    if (!releasedAt) return res.status(400).send({ status: false, message: "Released date is mandatory" })
-    
-    if (mongoose.Types.ObjectId.isValid(userId) == false) {
+        const checkISBN = await bookModel.findOne({ ISBN })
+        if (checkISBN) return res.status(409).send({ status: false, message: "ISBN already exists" })
+
+        const userID = await userModel.findOne({ _id: userId })
+        if (!userID) return res.status(404).send({ status: false, message: "UserID not Found" })
+
+        //____Creating____\\
+        const postBook = await bookModel.create(data)
+        res.status(201).send
+        ({ status: true, message: "Created successfully", data: postBook, releasedAt: new Date() })
+    } catch (error) {
+        return res.status(500).send({ status: false, message: error.message })
+    }
+}
+// ### GET /books
+// - Returns all books in the collection that aren't deleted.
+//  Return only book _id, title, excerpt, userId, category, releasedAt, reviews field.
+// //  Response example [here](#get-books-response)
+// - Return the HTTP status 200 if any documents are found. The response structure should be like [this](#successful-response-structure) 
+// - If no documents are found then return an HTTP status 404 with a response like [this](#error-response-structure) 
+// - Filter books list by applying filters. Query param can have any combination of below filters.
+//   - By userId
+//   - By category
+//   - By subcategory
+//   example of a query url: books?filtername=filtervalue&f2=fv2
+// - Return all books sorted by book name in Alphabatical order
+const getBook = async function (req, res) {
+ try {
+    const dataFromQuery = req.query
+    const { userId, category, subcategory } = dataFromQuery
+
+     if (!mongoose.Types.ObjectId.isValid(userId)) {
         return res.status(400).send({ status: false, message: "userId Invalid" });
     }
-    const userID = await userModel.findOne({_id: userId}) 
-    if(!userID) return res.status(404).send({status: false, message: "UserID not Found"})
+    // const userID = await userModel.findOne({ userId })                              ??????? ask to TA ???????
+    // if (!userID) return res.status(404).send({ status: false, message: "UserID not Found" })
 
-    const postBook = await bookModel.create(data)
-    res.status(201).send({ status: true, message: "Created successfully", data: postBook , releasedAt: new Date()})
+    const findCategory = await userModel.findOne({ category })
+    if (!findCategory) return res.status(404).send({ status: false, message: "This Category Not exist" })
 
+    const findSubcategory = await userModel.findOne({ subcategory })
+    if (!findSubcategory) return res.status(404).send({ status: false, message: "This Subcategory Not exist" })
+
+    const returnBook = await bookModel.find({$and:[dataFromQuery,{isDeleted:false}]})
+    .select({ _id: 1, title: 1, excerpt: 1, userId: 1 ,category:1,releasedAt:1,reviews:1 }).sort({title:1})
+    if(returnBook.length > 0){
+        return res.status(200).send({ status: true, count: returnBook.length, message: "Book list", data: returnBook })
+    }else {
+        res.status(404).send({ status: false, message: "No Book Found" })
+    }  
+ } catch (error) {
+        return res.status(500).send({ status: false, message: error.message })
+    }
 }
+// ### GET /books/:bookId
+// // - Returns a book with complete details including reviews.
+//  Reviews array would be in the form of Array. Response example [here](#book-details-response)
+// // - Return the HTTP status 200 if any documents are found. 
+// The response structure should be like [this](#successful-response-structure) 
+// // - If the book has no reviews then the response body should include book detail as shown 
+// [here](#book-details-response-no-reviews) and an empty array for reviewsData.
+// // - If no documents are found then return an HTTP status 404 with a response like [this](#error-response-structure) 
+const allBook = async function (req, res) {
+    try { 
+        const book = req.params.bookId
 
-module.exports = { createBook }
+        const findBooks = await bookModel.findById(book)
+        if(findBooks)return res.status(200).send({status:true, data: findBooks})
+
+    } catch (error) {
+           return res.status(500).send({ status: false, message: error.message })
+       }
+   }
+module.exports = { createBook, getBook, allBook }
