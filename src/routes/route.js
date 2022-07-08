@@ -17,7 +17,7 @@ router.post('/books', bookController.createBook)
 //____Get_books____\\
 router.get('/books', bookController.getBook)
 //____Get_books_By_Id____\\
-router.get('/books/:bookId', bookController.allBook)
+router.get('/books/:bookId', bookController.getBookById)
 
 //----------------------Review_Block--------------------------------\\
 
