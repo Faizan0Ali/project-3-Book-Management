@@ -79,7 +79,7 @@ const userLogin = async function (req, res) {
         "BookManagement",{ expiresIn: "1h" }
     );
     res.setHeader("x-api-key", token);
-    res.status(201).send({ status: true, message: "Login successfully" , token: token, issuedAt:new Date(),expiresIn: "1h"})
+    res.status(200).send({ status: true, message: "Login successfully" , token: token, issuedAt:new Date(),expiresIn: "1h"})
     } catch(error){
         return res.status(500).send({status:false, message: error.message})
     }
