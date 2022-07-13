@@ -70,12 +70,6 @@ const getBook = async function (req, res) {
               return res.status(400).send({status: false, message: `${userId}It is not a valid user id`})
               }}
 
-        // if (!mongoose.Types.ObjectId.isValid(userId)) {
-        //     return res.status(400).send({ status: false, message: "userId Invalid" });
-        // }
-        // const userID = await userModel.findOne({ userId })                              ??????? ask to TA ???????
-        // if (!userID) return res.status(404).send({ status: false, message: "UserID not Found" })
-
         const findCategory = await userModel.findOne({ category })
         if (!findCategory) return res.status(404).send({ status: false, message: "This Category Not exist" })
 
@@ -93,19 +87,12 @@ const getBook = async function (req, res) {
         return res.status(500).send({ status: false, message: error.message })
     }
 }
-// ### GET /books/:bookId
-// // - Returns a book with complete details including reviews.
-//  Reviews array would be in the form of Array. Response example [here](#book-details-response)
-// // - Return the HTTP status 200 if any documents are found. 
-// The response structure should be like [this](#successful-response-structure) 
-// // - If the book has no reviews then the response body should include book detail as shown 
-// [here](#book-details-response-no-reviews) and an empty array for reviewsData.
-// // - If no documents are found then return an HTTP status 404 with a response like [this](#error-response-structure) 
 
 const getBookById = async function (req, res) {
     try {
         const bookId = req.params.bookId
         bookId.isDeleted=false
+
         if(!mongoose.Types.ObjectId.isValid(bookId)){
             return res.status(400).send({status:false,message:'Invalid UserId Format'})
         }
@@ -152,6 +139,7 @@ const updateBooks = async function (req, res) {
         }
         let findBook = await bookModel.findOne({ _id: bookId })
         
+        //____Authentication_autherization____\\
         let userLoggedIn = req.decodedToken.userId
         if (findBook.userId.toString() !== userLoggedIn)
         return res.status(403).send({ status: false, msg: 'User logged is not allowed to modify the requested users data' })
@@ -188,17 +176,20 @@ let deleteBooks = async function (req, res) {
     try {
         let bookId = req.params.bookId
 
+        
         if (!mongoose.Types.ObjectId.isValid(bookId)) {
             return res.status(400).send({ status: false, message: "not a valid bookId" })
         }
         const checkBookId = await bookModel.findOne({ _id: bookId, isDeleted: false })
         if (!checkBookId) return res.status(404).send({ status: false, message: "Book Not Found Maybe Deleted" })
 
+        //____Authentication_autherization____\\
         let userLoggedIn = req.decodedToken.userId
         if (checkBookId.userId.toString() != userLoggedIn){
         return res.status(403).send({ status: false, msg: 'User logged is not allowed to modify the requested users data' })
         }
-
+  
+        //____Deleting____\\
         await bookModel.findOneAndUpdate({ _id: bookId }, { $set: { isDeleted: true, deletedAt: new Date() } }, { new: true })
 
         return res.status(200).send({ status: true, message: "Successfully Deleted" })
