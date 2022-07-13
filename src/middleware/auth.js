@@ -1,68 +1,53 @@
 const jwt = require("jsonwebtoken");
-const booksModel = require("../model/booksModel") 
+const bookModel = require("../Models/bookModel") 
 
 //================================================= Authentication ==================================================//
-
 const authenticate = async function (req, res, next) {
-    try {
-      let token = req.headers["x-Api-Key"];
-      if (!token) {
-        token = req.headers["x-api-key"];
-      }
-      //If no token is present in the request header return error
-      if (!token) {
-  
-        return res.status(400).send({ status: false, msg: "token must be present" });
-      }
-      // console.log(token);
-  
-      let decodedToken = jwt.verify(token, " group 15");
-  
-      if (!decodedToken) {
-        return res.status(403).send({ status: false, msg: "token is invalid" });
-      }
-    }
-    catch (error) {
-      console.log(error.message)
-      res.status(500).send({ msg: " Server Error", error: error.message })
-    }
-    next()
-  }
-  
-//================================================= Authorization ==================================================//
-
-
-const authorise = async function (req, res, next) {
   try {
-    let token = req.headers["x-api-key"];
-    if (!token) {
-      return res.status(400).send({ status: false, msg: "token must be present" });
-    }
-    let decodedToken = jwt.verify(token, "group 15");
+    let token = req.headers["x-api-key"] || req.headers["X-Api-Key"]
+    if (!token) return res.status(400).send({ status: false, msg: "token must be present in the request header" })
+    let decodedToken = jwt.verify(token, 'BookManagement', function (err, decodedToken) {
+      if (err) {
+        res.status(401).send({ status: false, msg: "invalid token" })
+      } else {
+        return decodedToken
+      }
+    })
 
-    let bookId = req.params.bookId
-    let book = await booksModel.findById(bookId)
+    req.decodedToken = decodedToken
 
-    if (!book) {
-      return res.status(404).send({ status: false, msg: "book does not exists" })
-    }
-    if (book.isDeleted) {
-      return res.status(404).send( {status: false, msg: "book is already deleted"} )
-    }
-    
-    let userLoggedIn = decodedToken.userId
-
-    if (book.userId != userLoggedIn) {
-      return res.status(403).send({ status: false, msg: 'user logged is not allowed to modify the requested users data' })
-    }
     next()
   }
-  catch (error) {
-    res.status(500).send({ msg: error.message })
+  catch (err) {
+    res.status(500).send({ msg: err.message })
   }
 }
 
+//================================================= Authorization ==================================================//
 
+const authorise = async function (req, res, next) {
+  try {
+    let token = req.headers["x-api-key"] || req.headers["X-Api-Key"]
+    let bookId = req.params.bookId
+    const decodedToken =jwt.verify(token, "BookManagement")
 
+    if (!(/^[0-9a-fA-F]{24}$/.test(bookId))) {
+      return res.status(400).send({ status: false, message: 'please provide valid bookId' })
+  }
+  const bookByBookId = await bookModel.findOne({_id : bookId, isDeleted : false})
+
+  if(!bookByBookId){
+  return res.status(404).send({status : false, message : `no book found by ${bookId}`})    
+  }
+  if((decodedToken.userId != bookByBookId.userId)){   
+    return res.status(403).send({status : false, message : `unauthorized access`})
+    }
+
+    next()  
+  }
+  catch (err) {
+    res.status(500).send({ msg: err.message })
+  }
+}
 
 module.exports = {authenticate, authorise}

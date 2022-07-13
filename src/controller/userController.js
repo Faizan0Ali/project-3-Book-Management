@@ -35,7 +35,7 @@ const CreateRegister = async function (req, res) {
         // if (!/^\d+\s[A-z]+\s[A-z]+/g.test(address.street)) { // ????????? question to TA  about pincode????????
         //     return res.status(400).send({ status: false, message: "Street Is Not Valid" })
         // }
-        if (!/(?:[A-Z][a-z.-]+[ ]?)+/.test(address.city)) { // ????????? question to TA  about pincode????????
+        if (!/^[a-zA-Z ]{2,30}$/.test(address.city)) { // ????????? question to TA  about pincode????????
             return res.status(400).send({ status: false, message: "City Is Not Valid" })
         }
         if (!/^[0-9]{6,6}$/.test(address.pincode)) { // ????????? question to TA  about pincode????????
@@ -76,10 +76,10 @@ const userLogin = async function (req, res) {
             company : "Team15",
             organisation: "functionUp"
         },
-        "Book Management",{ expiresIn: "30s" }
+        "BookManagement",{ expiresIn: "1h" }
     );
     res.setHeader("x-api-key", token);
-    res.status(201).send({ status: true, message: "Login successfully" , token: token, issuedAt:new Date(),expiresIn: "30s"})
+    res.status(201).send({ status: true, message: "Login successfully" , token: token, issuedAt:new Date(),expiresIn: "1h"})
     } catch(error){
         return res.status(500).send({status:false, message: error.message})
     }
