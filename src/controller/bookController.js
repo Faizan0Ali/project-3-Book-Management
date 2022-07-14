@@ -1,6 +1,7 @@
 const bookModel = require('../Models/bookModel')
 const userModel = require('../Models/userModel')
 const moment = require('moment')
+const awsController=require('../controller/awsController')
 
 const mongoose = require('mongoose')
 const reviewModel = require('../Models/reviewModel')
@@ -15,8 +16,16 @@ const isValidObjectId = function (objectId) {
  };
 const createBook = async function (req, res) {
     try {
-        const data = req.body
-        const { title, excerpt, userId, ISBN, category, subcategory,releasedAt } = data
+        let data = req.body
+        let files= req.files
+        const { title, excerpt,bookCover ,userId, ISBN, category, subcategory,releasedAt } = data
+
+        if(files && files.length>0){
+  
+            let uploadedFileURL= await awsController.uploadFile( files[0] )
+            data.bookCover = uploadedFileURL
+        }
+        // data = JSON.parse(JSON.stringify(data));
 
         //_Mandatory_Fields_\\
         if (Object.keys(data).length == 0) return res.status(400).send({ status: false, message: "Please enter valid Detail" })
@@ -27,6 +36,8 @@ const createBook = async function (req, res) {
         if (!category) return res.status(400).send({ status: false, message: "category is mandatory" })
         if (!subcategory) return res.status(400).send({ status: false, message: "subcategory is mandatory" })
     
+
+
         //_Validation_\\
         if (mongoose.Types.ObjectId.isValid(userId) == false) {
             return res.status(400).send({ status: false, message: "userId Invalid" });
@@ -144,10 +155,10 @@ const updateBooks = async function (req, res) {
         if (findBook.userId.toString() !== userLoggedIn)
         return res.status(403).send({ status: false, msg: 'User logged is not allowed to modify the requested users data' })
         
-        if (!/^(18|19|20)[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(releasedAt)) {
+        if (/^(18|19|20)[0-9]{2}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/.test(releasedAt)) {
             return res.status(400).send({ status: false, message: "Released date is not valid it should be YYYY-MM-DD" })
         }
-        if (!/^([0-9]{10}|[0-9]{13}|[0-9]{17})$/.test(ISBN)) {
+        if (/^([0-9]{10}|[0-9]{13}|[0-9]{17})$/.test(ISBN)) {
             return res.status(400).send({ status: false, message: "ISBN Must Be 10, 13 and 17 Digits Only" })
         }
         
@@ -190,7 +201,8 @@ let deleteBooks = async function (req, res) {
         }
   
         //____Deleting____\\
-        await bookModel.findOneAndUpdate({ _id: bookId }, { $set: { isDeleted: true, deletedAt: new Date() } }, { new: true })
+        await bookModel.findOneAndUpdate({ _id: bookId }, 
+            { $set: { isDeleted: true, deletedAt: new Date() } }, { new: true })
 
         return res.status(200).send({ status: true, message: "Successfully Deleted" })
 

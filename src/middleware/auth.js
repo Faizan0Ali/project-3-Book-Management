@@ -1,19 +1,23 @@
 const jwt = require("jsonwebtoken");
 const bookModel = require("../Models/bookModel") 
 
+const verify = token => {
+  return jwt.verify(token, 'BookManagement', (err, decode) => {
+      if (err) {
+          return null
+      } else {
+          return decode
+      }
+  })
+}
+
 //================================================= Authentication ==================================================//
 const authenticate = async function (req, res, next) {
   try {
     let token = req.headers["x-api-key"] || req.headers["X-Api-Key"]
     if (!token) return res.status(400).send({ status: false, msg: "token must be present in the request header" })
-    let decodedToken = jwt.verify(token, 'BookManagement', function (err, decodedToken) {
-      if (err) {
-        res.status(401).send({ status: false, msg: "invalid token" })
-      } else {
-        return decodedToken
-      }
-    })
-
+    let decodedToken = verify(token)
+    if(!decodedToken) return res.status(403).send({status:false, message: "Token not verified"})
     req.decodedToken = decodedToken
 
     next()

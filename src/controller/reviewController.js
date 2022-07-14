@@ -36,15 +36,20 @@ const postReview = async function (req, res) {
             review: review,
         };
         const createdReview = await reviewModel.create(responseBody)
+        
+        const findIsDeletedTrue = await bookModel.findOne({_id: bookId, isDeleted: true})
+        if(findIsDeletedTrue) return res.status(404).send({status:false, message: "Book Already Deleted"})
 
         const db = await reviewModel.find({ bookId: bookId, isDeleted: false })
             .select({ _id: 1, bookId: 1, reviewedBy: 1, reviewedAt: 1, rating: 1, review: 1 })
 
-        const book = await bookModel.findOneAndUpdate({ _id: bookId }, { $inc: { reviews: 1 } }, { new: true }).lean()
+            
+        const book = await bookModel.findOneAndUpdate
+        ({ _id: bookId }, { $inc: { reviews: 1 } }, { new: true }).lean()
 
         book.reviewsData = db
-
         return res.status(201).send({ status: true, message: 'Books list', data: book })
+        
     } catch (error) {
         return res.status(500).send({ status: false, message: error.message })
     }
@@ -59,19 +64,20 @@ const updateReview = async function (req, res) {
 
         //_Mandatory_Fields_\\
         if (Object.keys(data).length == 0) return res.status(400).send({ status: false, message: "Please enter valid Detail" })
-        if (!reviewedBy) return res.status(400).send({ status: false, message: "ReviewedBy Is Mandatory" })
-        if (!rating) return res.status(400).send({ status: false, message: "rating Is Mandatory" })
-
+      
         //_Validation_\\ 
         if (mongoose.Types.ObjectId.isValid(bookId) == false) {
             return res.status(400).send({ status: false, message: "bookId Invalid" });
         }
+        if (mongoose.Types.ObjectId.isValid(reviewId) == false) {
+            return res.status(400).send({ status: false, message: "reviewId Invalid" }); //   New changes //
+        }
         if (!/^[a-zA-Z ]{2,30}$/.test(reviewedBy)) {
             return res.status(400).send({ status: false, message: "Name Should Be 2-30 Characters" })
         }
-        if (!(rating >= 1 && rating <= 5)) {
-            return res.status(400).send({ status: false, msg: "Rating should be inbetween 1-5 " });
-        }
+        // if (!(rating >= 1 && rating <= 5)) {
+        //     return res.status(400).send({ status: false, msg: "Rating should be inbetween 1-5 " });
+        // }
 
 
         const checkBookId = await bookModel.findOne({ _id: bookId, isDeleted: false })
@@ -98,13 +104,20 @@ const deleteReview = async function (req, res) {
         let bookId = req.params.bookId
         let reviewId = req.params.reviewId
 
+        if (mongoose.Types.ObjectId.isValid(bookId) == false) {
+            return res.status(400).send({ status: false, message: "bookId Invalid" }); //   New changes //
+        }
+        if (mongoose.Types.ObjectId.isValid(reviewId) == false) {
+            return res.status(400).send({ status: false, message: "reviewId Invalid" }); //   New changes //
+        }
+
         const checkBookId = await bookModel.findOne({ _id: bookId, isDeleted: false })
         if (!checkBookId) return res.status(404).send({ status: false, message: "Book Not Exist Maybe Deleted" })
 
         const checkReviewId = await reviewModel.findOne({ _id: reviewId, isDeleted: false })
         if (!checkReviewId) return res.status(404).send({ status: false, message: "Review Not Exist Maybe Deleted" })
 
-        await bookModel.updateOne({ _id: bookId }, { $inc: { review: -1 } })
+        await bookModel.findOneAndUpdate({ _id: bookId }, { $inc: { reviews: -1 } })
 
         await reviewModel.findOneAndUpdate({ _id: reviewId, isDeleted: false },
             { $set: { isDeleted: true, deletedAt: new Date() } }, { new: true })
